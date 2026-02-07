@@ -45,7 +45,7 @@ config:
         train_text_encoder: false  # probably won't work with chroma
         gradient_checkpointing: true  # need the on unless you have a ton of vram
         noise_scheduler: "flowmatch" # for training only
-        optimizer: "adamw8bit"
+        optimizer: "adamw8"
         lr: 1e-4
         # uncomment this to skip the pre training sample
 #        skip_first_sample: true

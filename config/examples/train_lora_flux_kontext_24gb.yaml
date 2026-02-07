@@ -52,7 +52,7 @@ config:
         train_text_encoder: false  # probably won't work with flux
         gradient_checkpointing: true  # need the on unless you have a ton of vram
         noise_scheduler: "flowmatch" # for training only
-        optimizer: "adamw8bit"
+        optimizer: "adamw8"
         lr: 1e-4
         timestep_type: "weighted" # sigmoid, linear, or weighted.
         # uncomment this to skip the pre training sample

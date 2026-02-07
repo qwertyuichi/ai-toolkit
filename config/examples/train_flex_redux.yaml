@@ -67,7 +67,7 @@ config:
         gradient_checkpointing: true
         noise_scheduler: "flowmatch" # or "ddpm", "lms", "euler_a"
         timestep_type: "flux_shift" 
-        optimizer: "adamw8bit"
+        optimizer: "adamw8"
         lr: 1e-4
 
         # this is for Flex.1, comment this out for FLUX.1-dev

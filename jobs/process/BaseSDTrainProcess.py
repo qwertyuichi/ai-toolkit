@@ -1610,18 +1610,23 @@ class BaseSDTrainProcess(BaseTrainProcess):
                         if hasattr(te, 'enable_xformers_memory_efficient_attention'):
                             te.enable_xformers_memory_efficient_attention()
         
-        if self.train_config.attention_backend != 'native':
+        attention_backend = self.train_config.attention_backend
+        if torch.version.hip and attention_backend != 'native':
+            warn("Non-native attention backends are not supported on ROCm. Using native attention backend.")
+            attention_backend = 'native'
+
+        if attention_backend != 'native':
             if hasattr(vae, 'set_attention_backend'):
-                vae.set_attention_backend(self.train_config.attention_backend)
+                vae.set_attention_backend(attention_backend)
             if hasattr(unet, 'set_attention_backend'):
-                unet.set_attention_backend(self.train_config.attention_backend)
+                unet.set_attention_backend(attention_backend)
             if isinstance(text_encoder, list):
                 for te in text_encoder:
                     if hasattr(te, 'set_attention_backend'):
-                        te.set_attention_backend(self.train_config.attention_backend)
+                        te.set_attention_backend(attention_backend)
             else:
                 if hasattr(text_encoder, 'set_attention_backend'):
-                    text_encoder.set_attention_backend(self.train_config.attention_backend)
+                    text_encoder.set_attention_backend(attention_backend)
         if self.train_config.sdp:
             if torch.version.hip:
                 warn("CUDA SDP backends are disabled on ROCm.")
@@ -2364,7 +2369,15 @@ class BaseSDTrainProcess(BaseTrainProcess):
         if self.accelerator.is_main_process:
             self.save()
             self.logger.finish()
-        self.accelerator.end_training()
+        try:
+            self.accelerator.end_training()
+        except AttributeError as e:
+            # Some Windows+ROCm builds ship without a functional torch.distributed API.
+            # accelerate may still call into torch.distributed.is_initialized() while cleaning up.
+            if "torch.distributed" in str(e) and "is_initialized" in str(e):
+                warn("Skipping accelerate.end_training() because torch.distributed.is_initialized is unavailable.")
+            else:
+                raise
 
         if self.accelerator.is_main_process:
             # push to hub

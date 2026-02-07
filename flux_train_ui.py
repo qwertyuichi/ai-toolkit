@@ -276,8 +276,8 @@ train:
     use_ema: true
   gradient_accumulation_steps: 1
   gradient_checkpointing: true
-  noise_scheduler: flowmatch 
-  optimizer: adamw8bit #options: prodigy, dadaptation, adamw, adamw8bit, lion, lion8bit
+    noise_scheduler: flowmatch
+    optimizer: adafactor
   train_text_encoder: false #probably doesn't work for flux
   train_unet: true
 '''

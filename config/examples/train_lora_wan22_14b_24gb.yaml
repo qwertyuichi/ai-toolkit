@@ -42,7 +42,7 @@ config:
         gradient_checkpointing: true  # need the on unless you have a ton of vram
         noise_scheduler: "flowmatch" # for training only
         timestep_type: 'linear'
-        optimizer: "adamw8bit"
+        optimizer: "adamw8"
         lr: 1e-4
         optimizer_params:
           weight_decay: 1e-4

@@ -360,7 +360,7 @@ class TrainConfig:
         self.refiner_lr = kwargs.get('refiner_lr', self.lr)
         self.embedding_lr = kwargs.get('embedding_lr', self.lr)
         self.adapter_lr = kwargs.get('adapter_lr', self.lr)
-        self.optimizer = kwargs.get('optimizer', 'adamw')
+        self.optimizer = kwargs.get('optimizer', 'adafactor')
         self.optimizer_params = kwargs.get('optimizer_params', {})
         self.lr_scheduler = kwargs.get('lr_scheduler', 'constant')
         self.lr_scheduler_params = kwargs.get('lr_scheduler_params', {})

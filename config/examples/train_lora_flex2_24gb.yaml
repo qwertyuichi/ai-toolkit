@@ -78,7 +78,7 @@ config:
         # shift works well for training fast and learning composition and style. 
         # for just subject, you may want to change this to sigmoid
         timestep_type: 'shift'  # 'linear', 'sigmoid', 'shift'
-        optimizer: "adamw8bit"
+        optimizer: "adamw8"
         lr: 1e-4
 
         optimizer_params:

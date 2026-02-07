@@ -15,6 +15,7 @@
 Import utilities: Utilities related to imports and our lazy inits.
 """
 
+import importlib
 import importlib.util
 import sys
 
@@ -29,6 +30,13 @@ def _is_package_available(pkg_name: str):
     pkg_version = "N/A"
 
     if pkg_exists:
+        # Some packages (e.g. flash_attn) may be "installed" but fail to import due to
+        # missing native libraries or unsupported platform. Treat those as unavailable.
+        try:
+            importlib.import_module(pkg_name)
+        except Exception:
+            return False, "N/A"
+
         try:
             pkg_version = importlib_metadata.version(pkg_name)
         except (ImportError, importlib_metadata.PackageNotFoundError):

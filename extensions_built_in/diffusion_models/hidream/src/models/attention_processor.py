@@ -8,12 +8,12 @@ try:
     from flash_attn_interface import flash_attn_func
     USE_FLASH_ATTN3 = True
     flash_attn_available = True
-except ImportError:
+except (ImportError, ModuleNotFoundError, OSError):
     try:
         from flash_attn import flash_attn_func
         USE_FLASH_ATTN3 = False
         flash_attn_available = True
-    except ImportError:
+    except (ImportError, ModuleNotFoundError, OSError):
         USE_FLASH_ATTN3 = False
         flash_attn_available = False
 

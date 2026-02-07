@@ -6,7 +6,7 @@ from torch import Tensor
 try:
     from flash_attn.flash_attn_interface import flash_attn_func  # type: ignore
     _HAS_FLASH = True
-except (ImportError, ModuleNotFoundError):
+except (ImportError, ModuleNotFoundError, OSError):
     _HAS_FLASH = False
 
 
