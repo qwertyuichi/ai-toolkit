@@ -23,7 +23,8 @@ export default function GPUWidget({ gpu }: GPUWidgetProps) {
   const memoryPercentLabel = gpu.memory.total > 0 ? `${memoryPercent.toFixed(1)}%` : 'N/A';
   const memoryLabel =
     gpu.memory.total > 0 ? `${formatMemory(gpu.memory.used)} / ${formatMemory(gpu.memory.total)}` : 'N/A';
-  const powerLimit = gpu.power.limit > 0 ? gpu.power.limit.toFixed(1) : '?';
+  const powerDrawLabel = Number.isFinite(gpu.power.draw) ? `${gpu.power.draw.toFixed(1)}W` : 'N/A';
+  const powerLimitLabel = Number.isFinite(gpu.power.limit) && gpu.power.limit > 0 ? ` / ${gpu.power.limit.toFixed(1)}W` : '';
 
   return (
     <div className="bg-gray-900 rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 border border-gray-800">
@@ -91,8 +92,8 @@ export default function GPUWidget({ gpu }: GPUWidgetProps) {
             <div>
               <p className="text-xs text-gray-400">Power Draw</p>
               <p className="text-sm text-gray-200">
-                {gpu.power.draw?.toFixed(1)}W
-                <span className="text-gray-400 text-xs"> / {powerLimit}W</span>
+                {powerDrawLabel}
+                {powerLimitLabel && <span className="text-gray-400 text-xs">{powerLimitLabel}</span>}
               </p>
             </div>
           </div>
