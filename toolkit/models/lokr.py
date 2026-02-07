@@ -2,6 +2,7 @@
 
 import math
 
+import importlib.util
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,7 +12,16 @@ from toolkit.network_mixins import ToolkitModuleMixin
 from typing import TYPE_CHECKING, Union, List
 
 from optimum.quanto import QBytesTensor, QTensor
-from torchao.dtypes import AffineQuantizedTensor
+
+if importlib.util.find_spec("torchao") is not None:
+    try:
+        from torchao.dtypes import AffineQuantizedTensor
+    except Exception:
+        class AffineQuantizedTensor:
+            pass
+else:
+    class AffineQuantizedTensor:
+        pass
 
 if TYPE_CHECKING:
 

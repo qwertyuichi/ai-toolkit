@@ -70,6 +70,7 @@ from typing import TYPE_CHECKING
 from toolkit.print import print_acc
 from diffusers import FluxFillPipeline
 from transformers import AutoModel, AutoTokenizer, Gemma2Model, Qwen2Model, LlamaModel
+from toolkit.bitsandbytes_utils import require_bitsandbytes
 
 if TYPE_CHECKING:
     from toolkit.lora_special import LoRASpecialNetwork
@@ -479,13 +480,15 @@ class StableDiffusion:
             # handle quantization of TE
             te_is_quantized = False
             if self.model_config.text_encoder_bits == 8:
-                te_kwargs['load_in_8bit'] = True
-                te_kwargs['device_map'] = "auto"
-                te_is_quantized = True
+                if require_bitsandbytes("Text encoder 8-bit quantization is disabled."):
+                    te_kwargs['load_in_8bit'] = True
+                    te_kwargs['device_map'] = "auto"
+                    te_is_quantized = True
             elif self.model_config.text_encoder_bits == 4:
-                te_kwargs['load_in_4bit'] = True
-                te_kwargs['device_map'] = "auto"
-                te_is_quantized = True
+                if require_bitsandbytes("Text encoder 4-bit quantization is disabled."):
+                    te_kwargs['load_in_4bit'] = True
+                    te_kwargs['device_map'] = "auto"
+                    te_is_quantized = True
 
             main_model_path = "PixArt-alpha/PixArt-XL-2-1024-MS"
             if self.model_config.is_pixart_sigma:
@@ -565,13 +568,15 @@ class StableDiffusion:
             # handle quantization of TE
             te_is_quantized = False
             if self.model_config.text_encoder_bits == 8:
-                te_kwargs['load_in_8bit'] = True
-                te_kwargs['device_map'] = "auto"
-                te_is_quantized = True
+                if require_bitsandbytes("Text encoder 8-bit quantization is disabled."):
+                    te_kwargs['load_in_8bit'] = True
+                    te_kwargs['device_map'] = "auto"
+                    te_is_quantized = True
             elif self.model_config.text_encoder_bits == 4:
-                te_kwargs['load_in_4bit'] = True
-                te_kwargs['device_map'] = "auto"
-                te_is_quantized = True
+                if require_bitsandbytes("Text encoder 4-bit quantization is disabled."):
+                    te_kwargs['load_in_4bit'] = True
+                    te_kwargs['device_map'] = "auto"
+                    te_is_quantized = True
 
             main_model_path = model_path
 
@@ -945,13 +950,15 @@ class StableDiffusion:
                 # handle quantization of TE
                 te_is_quantized = False
                 if self.model_config.text_encoder_bits == 8:
-                    te_kwargs['load_in_8bit'] = True
-                    te_kwargs['device_map'] = "auto"
-                    te_is_quantized = True
+                    if require_bitsandbytes("Text encoder 8-bit quantization is disabled."):
+                        te_kwargs['load_in_8bit'] = True
+                        te_kwargs['device_map'] = "auto"
+                        te_is_quantized = True
                 elif self.model_config.text_encoder_bits == 4:
-                    te_kwargs['load_in_4bit'] = True
-                    te_kwargs['device_map'] = "auto"
-                    te_is_quantized = True
+                    if require_bitsandbytes("Text encoder 4-bit quantization is disabled."):
+                        te_kwargs['load_in_4bit'] = True
+                        te_kwargs['device_map'] = "auto"
+                        te_is_quantized = True
 
                 text_encoder = T5EncoderModel.from_pretrained(
                     model_path,

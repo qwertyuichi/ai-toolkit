@@ -4,11 +4,18 @@ import torch
 
 from optimum.quanto.quantize import _quantize_submodule
 from optimum.quanto.tensor import Optimizer, qtype, qtypes
-from torchao.quantization.quant_api import (
-    quantize_ as torchao_quantize_,
-    Float8WeightOnlyConfig,
-    UIntXWeightOnlyConfig,
-)
+try:
+    from torchao.quantization.quant_api import (
+        quantize_ as torchao_quantize_,
+        Float8WeightOnlyConfig,
+        UIntXWeightOnlyConfig,
+    )
+    _torchao_available = True
+except Exception:
+    torchao_quantize_ = None
+    Float8WeightOnlyConfig = None
+    UIntXWeightOnlyConfig = None
+    _torchao_available = False
 from optimum.quanto import freeze
 from tqdm import tqdm
 from safetensors.torch import load_file
@@ -32,26 +39,43 @@ Q_MODULES = [
     "QEmbeddingBag",
 ]
 
-torchao_qtypes = {
-    # "int4": Int4WeightOnlyConfig(),
-    "uint2": UIntXWeightOnlyConfig(torch.uint2),
-    "uint3": UIntXWeightOnlyConfig(torch.uint3),
-    "uint4": UIntXWeightOnlyConfig(torch.uint4),
-    "uint5": UIntXWeightOnlyConfig(torch.uint5),
-    "uint6": UIntXWeightOnlyConfig(torch.uint6),
-    "uint7": UIntXWeightOnlyConfig(torch.uint7),
-    "uint8": UIntXWeightOnlyConfig(torch.uint8),
-    "float8": Float8WeightOnlyConfig(),
-}
+_torchao_qtype_names = [
+    "uint2",
+    "uint3",
+    "uint4",
+    "uint5",
+    "uint6",
+    "uint7",
+    "uint8",
+    "float8",
+]
+
+torchao_qtypes = {}
+if _torchao_available:
+    torchao_qtypes = {
+        # "int4": Int4WeightOnlyConfig(),
+        "uint2": UIntXWeightOnlyConfig(torch.uint2),
+        "uint3": UIntXWeightOnlyConfig(torch.uint3),
+        "uint4": UIntXWeightOnlyConfig(torch.uint4),
+        "uint5": UIntXWeightOnlyConfig(torch.uint5),
+        "uint6": UIntXWeightOnlyConfig(torch.uint6),
+        "uint7": UIntXWeightOnlyConfig(torch.uint7),
+        "uint8": UIntXWeightOnlyConfig(torch.uint8),
+        "float8": Float8WeightOnlyConfig(),
+    }
 
 
 class aotype:
     def __init__(self, name: str):
+        if not _torchao_available:
+            raise RuntimeError("torchao is not available but a torchao qtype was requested")
         self.name = name
         self.config = torchao_qtypes[name]
 
 
 def get_qtype(qtype: Union[str, qtype]) -> qtype:
+    if isinstance(qtype, str) and (qtype in _torchao_qtype_names) and not _torchao_available:
+        raise RuntimeError("torchao is required for this quantization type but is not installed")
     if qtype in torchao_qtypes:
         return aotype(qtype)
     if isinstance(qtype, str):

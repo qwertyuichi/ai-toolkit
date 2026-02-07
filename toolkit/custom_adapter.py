@@ -52,6 +52,7 @@ from transformers import ViTHybridImageProcessor, ViTHybridForImageClassificatio
 from transformers import ViTFeatureExtractor, ViTForImageClassification
 
 from toolkit.models.llm_adapter import LLMAdapter
+from toolkit.bitsandbytes_utils import require_bitsandbytes
 
 import torch.nn.functional as F
 
@@ -219,7 +220,10 @@ class CustomAdapter(torch.nn.Module):
             self.te_adapter = TEAdapter(self, self.sd_ref(), self.te, self.tokenizer)
         elif self.adapter_type == 'llm_adapter':
             kwargs = {}
-            if self.config.quantize_llm:
+            use_quantization = self.config.quantize_llm and require_bitsandbytes(
+                "LLM quantization is disabled."
+            )
+            if use_quantization:
                 bnb_kwargs = {
                     'load_in_4bit': True,
                     'bnb_4bit_quant_type': "nf4",

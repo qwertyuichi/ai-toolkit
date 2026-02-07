@@ -1,6 +1,7 @@
 import os
 from huggingface_hub import whoami    
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
+os.environ["TRANSFORMERS_NO_TORCHAO"] = "1"
 import sys
 
 # Add the current working directory to the Python path
@@ -17,10 +18,17 @@ import yaml
 from slugify import slugify
 from transformers import AutoProcessor, AutoModelForCausalLM
 
+from toolkit.rocm import assert_rocm_available, RocmNotDetectedError
+
 sys.path.insert(0, "ai-toolkit")
 from toolkit.job import get_job
 
 MAX_IMAGES = 150
+
+try:
+    assert_rocm_available()
+except RocmNotDetectedError as e:
+    raise gr.Error(str(e))
 
 def load_captioning(uploaded_files, concept_sentence):
     uploaded_images = [file for file in uploaded_files if not file.endswith('.txt')]
@@ -98,7 +106,11 @@ def create_dataset(*inputs):
 
 def run_captioning(images, concept_sentence, *captions):
     #Load internally to not consume resources for training
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    try:
+        assert_rocm_available()
+    except RocmNotDetectedError as e:
+        raise gr.Error(str(e))
+    device = "cuda"
     torch_dtype = torch.float16
     model = AutoModelForCausalLM.from_pretrained(
         "multimodalart/Florence-2-large-no-flash-attn", torch_dtype=torch_dtype, trust_remote_code=True
@@ -128,7 +140,6 @@ def run_captioning(images, concept_sentence, *captions):
         captions[i] = caption_text
 
         yield captions
-    model.to("cpu")
     del model
     del processor
 
@@ -233,7 +244,7 @@ def start_training(
     return f"Training completed successfully. Model saved as {slugged_lora_name}"
 
 config_yaml = '''
-device: cuda:0
+device: cuda:0 # ROCm (HIP) only
 model:
   is_flux: true
   quantize: true

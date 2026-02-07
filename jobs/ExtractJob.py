@@ -2,6 +2,7 @@ from toolkit.kohya_model_util import load_models_from_stable_diffusion_checkpoin
 from collections import OrderedDict
 from jobs import BaseJob
 from toolkit.train_tools import get_torch_dtype
+from toolkit.rocm import assert_rocm_available
 
 process_dict = {
     'locon': 'ExtractLoconProcess',
@@ -29,7 +30,10 @@ class ExtractJob(BaseJob):
         self.torch_dtype = get_torch_dtype(self.dtype)
         self.output_folder = self.get_conf('output_folder', required=True)
         self.is_v2 = self.get_conf('is_v2', False)
-        self.device = self.get_conf('device', 'cpu')
+        self.device = self.get_conf('device', 'cuda:0')
+        assert_rocm_available()
+        if str(self.device).startswith('cpu'):
+            raise ValueError("CPU device is not supported in this ROCm-only build.")
 
         # loads the processes from the config
         self.load_processes(process_dict)
@@ -40,13 +44,13 @@ class ExtractJob(BaseJob):
         print(f"Loading models for extraction")
         print(f" - Loading base model: {self.base_model_path}")
         # (text_model, vae, unet)
-        self.model_base = load_models_from_stable_diffusion_checkpoint(self.is_v2, self.base_model_path)
+        self.model_base = load_models_from_stable_diffusion_checkpoint(self.is_v2, self.base_model_path, device=self.device)
         self.model_base_text_encoder = self.model_base[0]
         self.model_base_vae = self.model_base[1]
         self.model_base_unet = self.model_base[2]
 
         print(f" - Loading extract model: {self.extract_model_path}")
-        self.model_extract = load_models_from_stable_diffusion_checkpoint(self.is_v2, self.extract_model_path)
+        self.model_extract = load_models_from_stable_diffusion_checkpoint(self.is_v2, self.extract_model_path, device=self.device)
         self.model_extract_text_encoder = self.model_extract[0]
         self.model_extract_vae = self.model_extract[1]
         self.model_extract_unet = self.model_extract[2]

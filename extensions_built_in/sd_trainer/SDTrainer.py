@@ -30,7 +30,6 @@ import gc
 import torch
 from jobs.process import BaseSDTrainProcess
 from torchvision import transforms
-from diffusers import EMAModel
 import math
 from toolkit.train_tools import precondition_model_outputs_flow_match
 from toolkit.models.diffusion_feature_extraction import DiffusionFeatureExtractor, load_dfe

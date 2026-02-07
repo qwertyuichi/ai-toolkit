@@ -29,7 +29,7 @@ export default function TrainingForm() {
   const cloneId = searchParams.get('cloneId');
   const [gpuIDs, setGpuIDs] = useState<string | null>(null);
   const { settings, isSettingsLoaded } = useSettings();
-  const { gpuList, isGPUInfoLoaded } = useGPUInfo();
+  const { gpuList, isGPUInfoLoaded, errorMessage: gpuError } = useGPUInfo();
   const { datasets, status: datasetFetchStatus } = useDatasetList();
   const [datasetOptions, setDatasetOptions] = useState<{ value: string; label: string }[]>([]);
   const [showAdvancedView, setShowAdvancedView] = useState(false);
@@ -94,6 +94,8 @@ export default function TrainingForm() {
     }
   }, [gpuList, isGPUInfoLoaded]);
 
+  const isGpuSelectionValid = gpuIDs !== null && gpuIDs !== '' && !gpuError;
+
   useEffect(() => {
     if (isSettingsLoaded) {
       setJobConfig(settings.TRAINING_FOLDER, 'config.process[0].training_folder');
@@ -102,6 +104,7 @@ export default function TrainingForm() {
 
   const saveJob = async () => {
     if (status === 'saving') return;
+    if (!isGpuSelectionValid) return;
     setStatus('saving');
 
     apiClient
@@ -159,6 +162,9 @@ export default function TrainingForm() {
                 onChange={value => setGpuIDs(value)}
                 options={gpuList.map((gpu: any) => ({ value: `${gpu.index}`, label: `GPU #${gpu.index}` }))}
               />
+              {isGPUInfoLoaded && gpuError && (
+                <div className="mt-1 text-xs text-red-400">GPU detection failed: {gpuError}</div>
+              )}
             </div>
             <div className="mx-4 bg-gray-200 dark:bg-gray-800 w-1 h-6"></div>
           </>
@@ -208,7 +214,7 @@ export default function TrainingForm() {
           <Button
             className="text-gray-200 bg-green-800 px-3 py-1 rounded-md"
             onClick={() => saveJob()}
-            disabled={status === 'saving'}
+            disabled={status === 'saving' || !isGpuSelectionValid}
           >
             {status === 'saving' ? 'Saving...' : runId ? 'Update Job' : 'Create Job'}
           </Button>
@@ -248,6 +254,7 @@ export default function TrainingForm() {
               gpuIDs={gpuIDs}
               setGpuIDs={setGpuIDs}
               gpuList={gpuList}
+              gpuError={isGPUInfoLoaded ? gpuError : null}
               datasetOptions={datasetOptions}
             />
           </ErrorBoundary>

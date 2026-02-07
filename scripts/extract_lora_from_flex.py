@@ -14,8 +14,9 @@ parser.add_argument("--full", action="store_true", help="Do a full transformer e
 args = parser.parse_args()
 
 if True:
-    # set cuda environment variable
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+    # set ROCm environment variables
+    os.environ["HIP_VISIBLE_DEVICES"] = str(args.gpu)
+    os.environ["ROCR_VISIBLE_DEVICES"] = str(args.gpu)
     import torch
     from safetensors.torch import load_file, save_file
     from lycoris.utils import extract_linear, extract_conv, make_sparse

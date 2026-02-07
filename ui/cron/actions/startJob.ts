@@ -86,6 +86,11 @@ const startAndWatchJob = (job: Job) => {
       CUDA_DEVICE_ORDER: 'PCI_BUS_ID',
       CUDA_VISIBLE_DEVICES: `${job.gpu_ids}`,
       IS_AI_TOOLKIT_UI: '1',
+      TRANSFORMERS_NO_TORCHAO: '1',
+      PYTHONUTF8: '1',
+      PYTHONIOENCODING: 'utf-8',
+      HF_HUB_DISABLE_PROGRESS_BARS: '1',
+      TQDM_DISABLE: '1',
     };
 
     // HF_TOKEN
@@ -97,7 +102,15 @@ const startAndWatchJob = (job: Job) => {
     // Add the --log argument to the command
     const args = [runFilePath, configPath, '--log', logPath];
 
+    let logFd: number | null = null;
     try {
+      try {
+        logFd = fs.openSync(logPath, 'a');
+      } catch (e) {
+        console.error('Error opening log file for streaming:', e);
+        logFd = null;
+      }
+
       let subprocess;
 
       if (isWindows) {
@@ -110,13 +123,13 @@ const startAndWatchJob = (job: Job) => {
           cwd: TOOLKIT_ROOT,
           detached: true,
           windowsHide: true,
-          stdio: 'ignore', // don't tie stdio to parent
+          stdio: ['ignore', logFd ?? 'ignore', logFd ?? 'ignore'],
         });
       } else {
         // For non-Windows platforms, fully detach and ignore stdio so it survives daemon-like
         subprocess = spawn(pythonPath, args, {
           detached: true,
-          stdio: 'ignore',
+          stdio: ['ignore', logFd ?? 'ignore', logFd ?? 'ignore'],
           env: {
             ...process.env,
             ...additionalEnv,
@@ -151,6 +164,14 @@ const startAndWatchJob = (job: Job) => {
         },
       });
       return;
+    } finally {
+      if (logFd !== null) {
+        try {
+          fs.closeSync(logFd);
+        } catch (e) {
+          console.error('Error closing log file descriptor:', e);
+        }
+      }
     }
     // Resolve the promise immediately after starting the process
     resolve();

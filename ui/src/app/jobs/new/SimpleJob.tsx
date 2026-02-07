@@ -29,6 +29,7 @@ type Props = {
   gpuIDs: string | null;
   setGpuIDs: (value: string | null) => void;
   gpuList: any;
+  gpuError?: string | null;
   datasetOptions: any;
 };
 
@@ -43,6 +44,7 @@ export default function SimpleJob({
   gpuIDs,
   setGpuIDs,
   gpuList,
+  gpuError,
   datasetOptions,
 }: Props) {
   const modelArch = useMemo(() => {
@@ -165,6 +167,7 @@ export default function SimpleJob({
               onChange={value => setGpuIDs(value)}
               options={gpuList.map((gpu: any) => ({ value: `${gpu.index}`, label: `GPU #${gpu.index}` }))}
             />
+            {gpuError && <div className="mt-1 text-xs text-red-400">GPU detection failed: {gpuError}</div>}
             {disableSections.includes('trigger_word') ? null : (
               <TextInput
                 label="Trigger Word"

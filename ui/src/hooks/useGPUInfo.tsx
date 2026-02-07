@@ -8,6 +8,7 @@ export default function useGPUInfo(gpuIds: null | number[] = null, reloadInterva
   const [gpuList, setGpuList] = useState<GpuInfo[]>([]);
   const [isGPUInfoLoaded, setIsLoaded] = useState(false);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchGpuInfo = async () => {
     setStatus('loading');
@@ -18,9 +19,16 @@ export default function useGPUInfo(gpuIds: null | number[] = null, reloadInterva
         gpus = gpus.filter(gpu => gpuIds.includes(gpu.index));
       }
       setGpuList(gpus);
-      setStatus('success');
+      if (!data.hasAdlx || gpus.length === 0) {
+        setErrorMessage(data.error || 'No GPUs detected.');
+        setStatus('error');
+      } else {
+        setErrorMessage(null);
+        setStatus('success');
+      }
     } catch (err) {
       console.error(`Failed to fetch GPU data: ${err instanceof Error ? err.message : String(err)}`);
+      setErrorMessage(err instanceof Error ? err.message : String(err));
       setStatus('error');
     } finally {
       setIsLoaded(true);
@@ -44,5 +52,5 @@ export default function useGPUInfo(gpuIds: null | number[] = null, reloadInterva
     }
   }, [gpuIds, reloadInterval]); // Added dependencies
 
-  return { gpuList, setGpuList, isGPUInfoLoaded, status, refreshGpuInfo: fetchGpuInfo };
+  return { gpuList, setGpuList, isGPUInfoLoaded, status, errorMessage, refreshGpuInfo: fetchGpuInfo };
 }

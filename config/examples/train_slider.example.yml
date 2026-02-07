@@ -11,7 +11,7 @@ config:
   # folder will be created with name above in folder below
   # it can be relative to the project root or absolute
   training_folder: "output/LoRA"
-  device: cuda:0 # cpu, cuda:0, etc
+  device: cuda:0 # ROCm (HIP) only
   # for tensorboard logging, we will make a subfolder for this job
   log_dir: "output/.tensorboard"
   # you can stack processes for other jobs, It is not tested with sliders though

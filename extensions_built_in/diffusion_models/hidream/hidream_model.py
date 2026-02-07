@@ -9,7 +9,7 @@ from toolkit import train_tools
 from toolkit.config_modules import GenerateImageConfig, ModelConfig
 from PIL import Image
 from toolkit.models.base_model import BaseModel
-from diffusers import AutoencoderKL, TorchAoConfig
+from diffusers import AutoencoderKL
 from toolkit.basic import flush
 from toolkit.prompt_utils import PromptEmbeds
 from toolkit.samplers.custom_flowmatch_sampler import CustomFlowMatchEulerDiscreteScheduler
@@ -19,7 +19,7 @@ from toolkit.accelerator import get_accelerator, unwrap_model
 from optimum.quanto import freeze, QTensor
 from toolkit.util.mask import generate_random_mask, random_dialate_mask
 from toolkit.util.quantize import quantize, get_qtype
-from transformers import T5TokenizerFast, T5EncoderModel, CLIPTextModel, CLIPTokenizer, TorchAoConfig as TorchAoConfigTransformers
+from transformers import T5TokenizerFast, T5EncoderModel, CLIPTextModel, CLIPTokenizer
 from .src.pipelines.hidream_image.pipeline_hidream_image import HiDreamImagePipeline
 from .src.models.transformers.transformer_hidream_image import HiDreamImageTransformer2DModel
 from .src.schedulers.fm_solvers_unipc import FlowUniPCMultistepScheduler

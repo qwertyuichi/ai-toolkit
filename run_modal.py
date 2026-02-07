@@ -8,15 +8,19 @@ modal run run_modal.py --config-file-list-str=/root/ai-toolkit/config/whatever_y
 
 import os
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
+os.environ["TRANSFORMERS_NO_TORCHAO"] = "1"
 import sys
 import modal
 from dotenv import load_dotenv
+from toolkit.rocm import RocmNotDetectedError
 # Load the .env file if it exists
 load_dotenv()
 
 sys.path.insert(0, "/root/ai-toolkit")
 # must come before ANY torch or fastai imports
 # import toolkit.cuda_malloc
+
+raise RocmNotDetectedError("ROCm-only build: Modal CUDA runner is not supported.")
 
 # turn off diffusers telemetry until I can figure out how to make it opt-in
 os.environ['DISABLE_TELEMETRY'] = 'YES'
@@ -60,7 +64,6 @@ image = (
         "timm",
         "prodigyopt",
         "controlnet_aux==0.0.7",
-        "bitsandbytes",
         "hf_transfer",
         "lpips", 
         "pytorch_fid", 

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently -k -n WORKER,UI \"ts-node-dev --project tsconfig.worker.json --respawn --watch cron --transpile-only cron/worker.ts\" \"next dev --turbopack\"",
-    "build": "tsc -p tsconfig.worker.json && next build",
+    "build": "tsc -p tsconfig.worker.json && node -r ./scripts/readlink_patch.js ./node_modules/next/dist/bin/next build",
     "start": "concurrently --restart-tries -1 --restart-after 1000 -n WORKER,UI \"node dist/cron/worker.js\" \"next start --port 8675\"",
     "build_and_start": "npm install && npm run update_db && npm run build && npm run start",
     "lint": "next lint",
@@ -30,7 +30,6 @@
     "react-select": "^5.10.1",
     "recharts": "^3.6.0",
     "sqlite3": "^5.1.7",
-    "systeminformation": "^5.27.11",
     "uuid": "^11.1.0",
     "yaml": "^2.7.0"
   },
@@ -46,6 +45,9 @@
     "tailwindcss": "^3.4.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5"
+  },
+  "overrides": {
+    "tar": "^7.5.7"
   },
   "prettier": "prettier-basic"
 }

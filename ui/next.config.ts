@@ -1,9 +1,6 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  devIndicators: {
-    buildActivity: false,
-  },
   typescript: {
     // Remove this. Build fails because of route types
     ignoreBuildErrors: true,
@@ -13,6 +10,12 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '100gb',
     },
     middlewareClientMaxBodySize: '100gb',
+  },
+  webpack: (config) => {
+    config.resolve = config.resolve || {};
+    config.resolve.symlinks = false;
+    config.cache = false;
+    return config;
   },
 };
 

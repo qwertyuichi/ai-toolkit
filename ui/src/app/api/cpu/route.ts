@@ -1,19 +1,21 @@
 import { NextResponse } from 'next/server';
-import si from 'systeminformation';
+import os from 'os';
 import { CpuInfo } from '@/types';
 
 export async function GET() {
   try {
-    const cpuInfoRaw = await si.cpu();
-    const memoryData = await si.mem();
+    const cpuInfoRaw = os.cpus();
+    const totalMemory = os.totalmem();
+    const freeMemory = os.freemem();
+    const cpuModel = cpuInfoRaw.length > 0 ? cpuInfoRaw[0].model : 'Unknown CPU';
     let cpuInfo: CpuInfo = {
-      name: `${cpuInfoRaw.manufacturer} ${cpuInfoRaw.brand}`,
-      cores: cpuInfoRaw.cores,
-      temperature: (await si.cpuTemperature()).main || 0,
-      totalMemory: memoryData.total / (1024 * 1024),
-      availableMemory: memoryData.available / (1024 * 1024),
-      freeMemory: memoryData.free / (1024 * 1024),
-      currentLoad: (await si.currentLoad()).currentLoad || 0,
+      name: cpuModel,
+      cores: cpuInfoRaw.length,
+      temperature: 0,
+      totalMemory: totalMemory / (1024 * 1024),
+      availableMemory: freeMemory / (1024 * 1024),
+      freeMemory: freeMemory / (1024 * 1024),
+      currentLoad: 0,
     };
 
     return NextResponse.json(cpuInfo);

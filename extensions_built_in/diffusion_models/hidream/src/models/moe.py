@@ -3,7 +3,11 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from .attention import FeedForwardSwiGLU
-from torch.distributed.nn.functional import all_gather
+try:
+    from torch.distributed.nn.functional import all_gather
+except Exception:
+    def all_gather(tensor):
+        return [tensor]
 
 _LOAD_BALANCING_LOSS = []
 def save_load_balancing_loss(loss):

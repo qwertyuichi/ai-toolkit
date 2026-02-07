@@ -1,6 +1,11 @@
 import math
 import torch
-import torch.distributed as dist
+try:
+    import torch.distributed as dist
+    _dist_available = True
+except Exception:
+    dist = None
+    _dist_available = False
 from torch.optim import Optimizer
 from toolkit.optimizers.optimizer_utils import copy_stochastic, Auto8bitTensor, stochastic_grad_accummulation
 
@@ -230,6 +235,8 @@ class Prodigy8bit(Optimizer):
 
         if lr > 0.0:
             if fsdp_in_use:
+                if not _dist_available or dist is None or not dist.is_available():
+                    raise RuntimeError("torch.distributed is not available but fsdp_in_use was enabled")
                 dist_tensor = torch.zeros(2).cuda()
                 dist_tensor[0] = d_numerator
                 dist_tensor[1] = d_denom

@@ -13,7 +13,6 @@ from typing import Union, List, Optional
 import numpy as np
 import yaml
 from diffusers import T2IAdapter, ControlNetModel
-from diffusers.training_utils import compute_density_for_timestep_sampling
 from safetensors.torch import save_file, load_file
 # from lycoris.config import PRESET
 from torch.utils.data import DataLoader
@@ -72,6 +71,7 @@ import hashlib
 
 from toolkit.util.blended_blur_noise import get_blended_blur_noise
 from toolkit.util.get_model import get_model_class
+from toolkit.warnings import warn
 
 def flush():
     torch.cuda.empty_cache()
@@ -1599,13 +1599,16 @@ class BaseSDTrainProcess(BaseTrainProcess):
         noise_scheduler = self.sd.noise_scheduler
 
         if self.train_config.xformers:
-            vae.enable_xformers_memory_efficient_attention()
-            unet.enable_xformers_memory_efficient_attention()
-            if isinstance(text_encoder, list):
-                for te in text_encoder:
-                    # if it has it
-                    if hasattr(te, 'enable_xformers_memory_efficient_attention'):
-                        te.enable_xformers_memory_efficient_attention()
+            if torch.version.hip:
+                warn("xFormers is CUDA-only and disabled on ROCm.")
+            else:
+                vae.enable_xformers_memory_efficient_attention()
+                unet.enable_xformers_memory_efficient_attention()
+                if isinstance(text_encoder, list):
+                    for te in text_encoder:
+                        # if it has it
+                        if hasattr(te, 'enable_xformers_memory_efficient_attention'):
+                            te.enable_xformers_memory_efficient_attention()
         
         if self.train_config.attention_backend != 'native':
             if hasattr(vae, 'set_attention_backend'):
@@ -1620,9 +1623,12 @@ class BaseSDTrainProcess(BaseTrainProcess):
                 if hasattr(text_encoder, 'set_attention_backend'):
                     text_encoder.set_attention_backend(self.train_config.attention_backend)
         if self.train_config.sdp:
-            torch.backends.cuda.enable_math_sdp(True)
-            torch.backends.cuda.enable_flash_sdp(True)
-            torch.backends.cuda.enable_mem_efficient_sdp(True)
+            if torch.version.hip:
+                warn("CUDA SDP backends are disabled on ROCm.")
+            else:
+                torch.backends.cuda.enable_math_sdp(True)
+                torch.backends.cuda.enable_flash_sdp(True)
+                torch.backends.cuda.enable_mem_efficient_sdp(True)
         
         # # check if we have sage and is flux
         # if self.sd.is_flux:

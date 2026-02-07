@@ -1,6 +1,7 @@
 import os
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
+os.environ["TRANSFORMERS_NO_TORCHAO"] = "1"
 import sys
 from typing import Union, OrderedDict
 from dotenv import load_dotenv
@@ -23,6 +24,7 @@ import argparse
 from toolkit.job import get_job
 from toolkit.accelerator import get_accelerator
 from toolkit.print import print_acc, setup_log_to_file
+from toolkit.rocm import assert_rocm_available
 
 accelerator = get_accelerator()
 
@@ -44,6 +46,7 @@ def print_end_message(jobs_completed, jobs_failed):
 
 
 def main():
+    assert_rocm_available()
     parser = argparse.ArgumentParser()
 
     # require at lease one config file
@@ -91,6 +94,7 @@ def main():
         print_acc(f"Running {len(config_file_list)} job{'' if len(config_file_list) == 1 else 's'}")
 
     for config_file in config_file_list:
+        job = None
         try:
             job = get_job(config_file, args.name)
             job.run()
@@ -100,7 +104,8 @@ def main():
             print_acc(f"Error running job: {e}")
             jobs_failed += 1
             try:
-                job.process[0].on_error(e)
+                if job and job.process:
+                    job.process[0].on_error(e)
             except Exception as e2:
                 print_acc(f"Error running on_error: {e2}")
             if not args.recover:
@@ -108,7 +113,8 @@ def main():
                 raise e
         except KeyboardInterrupt as e:
             try:
-                job.process[0].on_error(e)
+                if job and job.process:
+                    job.process[0].on_error(e)
             except Exception as e2:
                 print_acc(f"Error running on_error: {e2}")
             if not args.recover:

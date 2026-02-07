@@ -1,4 +1,5 @@
 import torch
+from toolkit.bitsandbytes_utils import require_bitsandbytes
 
 
 def get_optimizer(
@@ -61,6 +62,9 @@ def get_optimizer(
 
         optimizer = Adam8bit(params, lr=learning_rate, eps=1e-6, decouple=True, **optimizer_params)
     elif lower_type.endswith("8bit"):
+        if not require_bitsandbytes("8-bit optimizers are disabled."):
+            raise ImportError("bitsandbytes is not available.")
+
         import bitsandbytes
 
         if lower_type == "adam8bit":

@@ -7,7 +7,7 @@ config:
     # process 1
     - type: to_folder  # process images to a folder
       output_folder: "output/gen"
-      device: cuda:0 # cpu, cuda:0, etc
+      device: cuda:0 # ROCm (HIP) only
       generate:
         # these are your defaults you can override most of them with flags
         sampler: "ddpm" # ignored for now, will add later though ddpm is used regardless for now

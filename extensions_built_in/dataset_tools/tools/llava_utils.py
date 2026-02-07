@@ -5,6 +5,7 @@ import torch
 from PIL import Image, ImageOps
 
 from transformers import AutoTokenizer, BitsAndBytesConfig, CLIPImageProcessor
+from toolkit.bitsandbytes_utils import require_bitsandbytes
 
 img_ext = ['.jpg', '.jpeg', '.png', '.webp']
 
@@ -30,13 +31,14 @@ class LLaVAImageProcessor:
         model_path = "4bit/llava-v1.5-13b-3GB"
         # kwargs = {"device_map": "auto"}
         kwargs = {"device_map": self.device}
-        kwargs['load_in_4bit'] = True
-        kwargs['quantization_config'] = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type='nf4'
-        )
+        if require_bitsandbytes("LLaVA 4-bit quantization is disabled."):
+            kwargs['load_in_4bit'] = True
+            kwargs['quantization_config'] = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type='nf4'
+            )
         self.model = LlavaLlamaForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, **kwargs)
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
         vision_tower = self.model.get_vision_tower()

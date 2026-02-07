@@ -216,7 +216,7 @@ _Last updated: 2025-12-17 22:19 UTC_
 
 Requirements:
 - python >3.10
-- Nvidia GPU with enough ram to do what you need
+- ROCm 7.2-capable AMD GPU with enough VRAM
 - python venv
 - git
 
@@ -227,12 +227,9 @@ git clone https://github.com/ostris/ai-toolkit.git
 cd ai-toolkit
 python3 -m venv venv
 source venv/bin/activate
-# install torch first
-pip3 install --no-cache-dir torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cu126
+# install ROCm 7.2 PyTorch first (use your ROCm 7.2 build)
 pip3 install -r requirements.txt
 ```
-
-For devices running **DGX OS** (including DGX Spark), follow [these](dgx_instructions.md) instructions.
 
 
 Windows:
@@ -244,7 +241,7 @@ git clone https://github.com/ostris/ai-toolkit.git
 cd ai-toolkit
 python -m venv venv
 .\venv\Scripts\activate
-pip install --no-cache-dir torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cu126
+# install ROCm 7.2 PyTorch first (use your ROCm 7.2 build)
 pip install -r requirements.txt
 ```
 
