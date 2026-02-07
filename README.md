@@ -140,22 +140,3 @@ if will be ignored.
 
 ### Feb 07, 2026
 - Clarified Windows + ROCm-only support and removed non-Windows guidance in this README.
-- Added support for OmniGen2 training
-- 
-### June 17, 2025
-- Performance optimizations for batch preparation
-- Added some docs via a popup for items in the simple ui explaining what settings do. Still a WIP
-
-### June 16, 2025
-- Hide control images in the UI when viewing datasets
-- WIP on mean flow loss
-
-### June 12, 2025
-- Fixed issue that resulted in blank captions in the dataloader
-
-### June 10, 2025
-- Decided to keep track up updates in the readme
-- Added support for SDXL in the UI
-- Added support for SD 1.5 in the UI
-- Fixed UI Wan 2.1 14b name bug
-- Added support for for conv training in the UI for models that support it
