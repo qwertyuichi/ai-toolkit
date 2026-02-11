@@ -20,11 +20,54 @@ export default function JobOverview({ job }: JobOverviewProps) {
   // Track whether we should auto-scroll to bottom
   const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
 
+  const parseSpeedSecondsPerIter = (speedString: string): number | null => {
+    const s = (speedString || '').trim();
+    if (!s) return null;
+
+    const iterPerSec = s.match(/^([0-9]*\.?[0-9]+)\s*iter\s*\/\s*sec$/i);
+    if (iterPerSec) {
+      const v = Number(iterPerSec[1]);
+      if (!Number.isFinite(v) || v <= 0) return null;
+      return 1 / v;
+    }
+
+    const secPerIter = s.match(/^([0-9]*\.?[0-9]+)\s*sec\s*\/\s*iter$/i);
+    if (secPerIter) {
+      const v = Number(secPerIter[1]);
+      if (!Number.isFinite(v) || v <= 0) return null;
+      return v;
+    }
+
+    return null;
+  };
+
+  const formatEta = (totalSeconds: number): string => {
+    if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return '?';
+    const s = Math.round(totalSeconds);
+    const days = Math.floor(s / 86400);
+    const hours = Math.floor((s % 86400) / 3600);
+    const minutes = Math.floor((s % 3600) / 60);
+    const seconds = s % 60;
+
+    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+  };
+
   const { gpuList, isGPUInfoLoaded } = useGPUInfo(gpuIds, 5000);
   const { cpuInfo, isCPUInfoLoaded } = useCPUInfo(5000);
   const totalSteps = getTotalSteps(job);
   const progress = (job.step / totalSteps) * 100;
   const isStopping = job.stop && job.status === 'running';
+
+  const etaString = useMemo(() => {
+    const secondsPerIter = parseSpeedSecondsPerIter(job.speed_string);
+    if (secondsPerIter == null) return '';
+    const remaining = Math.max(0, totalSteps - job.step);
+    if (remaining === 0) return '';
+    return formatEta(remaining * secondsPerIter);
+  }, [job.speed_string, job.step, totalSteps]);
 
   const logLines: string[] = useMemo(() => {
     // split at line breaks on \n or \r\n but not \r
@@ -130,6 +173,7 @@ export default function JobOverview({ job }: JobOverviewProps) {
               <div>
                 <p className="text-xs text-gray-400">Speed</p>
                 <p className="text-sm font-medium text-gray-200">{job.speed_string == '' ? '?' : job.speed_string}</p>
+                {etaString !== '' && <p className="text-xs text-gray-400">ETA {etaString}</p>}
               </div>
             </div>
           </div>

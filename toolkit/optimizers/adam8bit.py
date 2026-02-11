@@ -103,6 +103,42 @@ class Adam8bit(Optimizer):
                     state['exp_avg_sq'] = Auto8bitTensor(
                         torch.zeros_like(p_fp32.data).detach())
 
+                # Robustness for resuming from checkpoints: older checkpoints or
+                # weights_only loads can leave Auto8bitTensor data as plain dicts.
+                for k in ('exp_avg', 'exp_avg_sq'):
+                    v = state.get(k, None)
+                    if isinstance(v, Auto8bitTensor) or torch.is_tensor(v):
+                        continue
+                    if isinstance(v, dict):
+                        # Helper: build a valid Auto8bitTensor state dict even if
+                        # weights_only omitted non-tensor entries like orig_dtype.
+                        def _coerce_state_dict(sd: dict) -> dict:
+                            if 'orig_dtype' not in sd:
+                                sd = dict(sd)
+                                sd['orig_dtype'] = torch.float32
+                            return sd
+
+                        # New format (preferred): {'_type': 'Auto8bitTensor', 'state': {...}}
+                        if 'state' in v and isinstance(v.get('state'), dict):
+                            inner = v['state']
+                            if {'quantized', 'scale'}.issubset(inner.keys()):
+                                state[k] = Auto8bitTensor(_coerce_state_dict(inner))
+                                if hasattr(state[k], 'quantized') and state[k].quantized.device != p.device:
+                                    state[k].quantized = state[k].quantized.to(p.device)
+                                continue
+
+                        # Old/flat format: raw Auto8bitTensor.state_dict()
+                        if {'quantized', 'scale'}.issubset(v.keys()):
+                            state[k] = Auto8bitTensor(_coerce_state_dict(v))
+                            if hasattr(state[k], 'quantized') and state[k].quantized.device != p.device:
+                                state[k].quantized = state[k].quantized.to(p.device)
+                            continue
+
+                    # If we get here, something unexpected is in the state.
+                    raise TypeError(
+                        f"Adam8bit state['{k}'] has unsupported type/shape: {type(v)} keys={list(v.keys()) if isinstance(v, dict) else None}"
+                    )
+
                 exp_avg = state['exp_avg'].to(torch.float32)
                 exp_avg_sq = state['exp_avg_sq'].to(torch.float32)
 
@@ -137,16 +173,24 @@ class Adam8bit(Optimizer):
     def state_dict(self):
         """Returns the state of the optimizer as a dict."""
         state_dict = super().state_dict()
-        
-        # Convert Auto8bitTensor objects to regular state dicts
-        for param_id, param_state in state_dict['state'].items():
+
+        # Convert Auto8bitTensor objects to regular (pickleable) dicts.
+        # IMPORTANT: torch Optimizer.state_dict() may return references to the
+        # internal per-parameter state dicts, so do not mutate param_state in-place.
+        converted_state = {}
+        for param_id, param_state in state_dict.get('state', {}).items():
+            new_param_state = {}
             for key, value in param_state.items():
                 if isinstance(value, Auto8bitTensor):
-                    param_state[key] = {
+                    new_param_state[key] = {
                         '_type': 'Auto8bitTensor',
                         'state': value.state_dict()
                     }
-        
+                else:
+                    new_param_state[key] = value
+            converted_state[param_id] = new_param_state
+
+        state_dict['state'] = converted_state
         return state_dict
 
     def load_state_dict(self, state_dict):
@@ -157,6 +201,16 @@ class Adam8bit(Optimizer):
         # Then convert any Auto8bitTensor states back to objects
         for param_id, param_state in self.state.items():
             for key, value in param_state.items():
-                if isinstance(value, dict) and value.get('_type') == 'Auto8bitTensor':
+                if isinstance(value, Auto8bitTensor):
+                    continue
+
+                # New format (preferred): {'_type': 'Auto8bitTensor', 'state': {...}}
+                if isinstance(value, dict) and value.get('_type') == 'Auto8bitTensor' and 'state' in value:
                     param_state[key] = Auto8bitTensor(value['state'])
+                    continue
+
+                # Backward-compatible format: raw Auto8bitTensor.state_dict()
+                # {'quantized': <Tensor>, 'scale': <float>, 'orig_dtype': <dtype>}
+                if isinstance(value, dict) and {'quantized', 'scale', 'orig_dtype'}.issubset(value.keys()):
+                    param_state[key] = Auto8bitTensor(value)
 

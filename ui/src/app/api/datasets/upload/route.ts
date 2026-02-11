@@ -1,8 +1,9 @@
 // src/app/api/datasets/upload/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import path from 'path';
 import { getDatasetsRoot } from '@/server/settings';
+import { isPathInside, getNonEmptyString } from '@/server/pathSecurity';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,14 +13,21 @@ export async function POST(request: NextRequest) {
     }
     const formData = await request.formData();
     const files = formData.getAll('files');
-    const datasetName = formData.get('datasetName') as string;
+    const datasetName = getNonEmptyString(formData.get('datasetName'));
+    if (!datasetName) {
+      return NextResponse.json({ error: 'Invalid datasetName' }, { status: 400 });
+    }
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'No files provided' }, { status: 400 });
     }
 
     // Create upload directory if it doesn't exist
-    const uploadDir = join(datasetsPath, datasetName);
+    const uploadDir = path.resolve(datasetsPath, datasetName);
+
+    if (!(await isPathInside(datasetsPath, uploadDir)) || uploadDir === datasetsPath) {
+      return NextResponse.json({ error: 'Invalid datasetName' }, { status: 400 });
+    }
     await mkdir(uploadDir, { recursive: true });
 
     const savedFiles: string[] = [];
@@ -27,12 +35,18 @@ export async function POST(request: NextRequest) {
     // Process files sequentially to avoid overwhelming the system
     for (let i = 0; i < files.length; i++) {
       const file = files[i] as any;
+      if (!file || typeof file.name !== 'string' || !file.name) {
+        return NextResponse.json({ error: 'Invalid file upload' }, { status: 400 });
+      }
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
       // Clean filename and ensure it's unique
       const fileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const filePath = join(uploadDir, fileName);
+      if (!fileName || fileName === '.' || fileName === '..') {
+        return NextResponse.json({ error: 'Invalid filename' }, { status: 400 });
+      }
+      const filePath = path.resolve(uploadDir, fileName);
 
       await writeFile(filePath, buffer);
       savedFiles.push(fileName);

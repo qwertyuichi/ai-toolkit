@@ -621,11 +621,23 @@ class ModelConfig:
         self.te_device = kwargs.get("te_device", None)
         self.te_dtype = kwargs.get("te_dtype", self.dtype)
 
-        # only for flux for now
+        # Quantization (optional)
+        # Defaults to None (disabled). If quantization is enabled but qtype is not
+        # specified, we fall back to the previous default (qfloat8).
         self.quantize = kwargs.get("quantize", False)
         self.quantize_te = kwargs.get("quantize_te", self.quantize)
-        self.qtype = kwargs.get("qtype", "qfloat8")
-        self.qtype_te = kwargs.get("qtype_te", "qfloat8")
+
+        self.qtype = kwargs.get("qtype", None)
+        if self.qtype == "":
+            self.qtype = None
+        self.qtype_te = kwargs.get("qtype_te", None)
+        if self.qtype_te == "":
+            self.qtype_te = None
+
+        if self.quantize and self.qtype is None:
+            self.qtype = "qfloat8"
+        if self.quantize_te and self.qtype_te is None:
+            self.qtype_te = "qfloat8"
         self.low_vram = kwargs.get("low_vram", False)
         self.attn_masking = kwargs.get("attn_masking", False)
         if self.attn_masking and not self.is_flux:

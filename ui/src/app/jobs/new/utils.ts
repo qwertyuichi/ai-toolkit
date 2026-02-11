@@ -143,4 +143,12 @@ export const handleModelArchChange = (
   for (const key in newDefaults) {
     setJobConfig(newDefaults[key][0], key);
   }
+
+  // Keep quantization disabled when switching model architectures.
+  // Some model defaults enable qfloat8 (float8) automatically; this forces the UI to stay at "- NONE -".
+  setJobConfig(false, 'config.process[0].model.quantize');
+  setJobConfig('', 'config.process[0].model.qtype');
+  setJobConfig(false, 'config.process[0].model.quantize_te');
+  setJobConfig('', 'config.process[0].model.qtype_te');
+  setJobConfig(undefined, 'config.process[0].model.quantize_kwargs');
 };

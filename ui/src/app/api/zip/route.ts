@@ -5,6 +5,7 @@ import fsp from 'fs/promises';
 import path from 'path';
 import archiver from 'archiver';
 import { getTrainingFolder } from '@/server/settings';
+import { isPathInside, getNonEmptyString } from '@/server/pathSecurity';
 
 export const runtime = 'nodejs'; // ensure Node APIs are available
 export const dynamic = 'force-dynamic'; // long-running, non-cached
@@ -26,9 +27,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'jobName is required' }, { status: 400 });
     }
 
+    const jobName = getNonEmptyString(body.jobName);
+    if (!jobName) {
+      return NextResponse.json({ error: 'Invalid jobName' }, { status: 400 });
+    }
+
     const trainingRoot = await resolveSafe(await getTrainingFolder());
-    const folderPath = await resolveSafe(path.join(trainingRoot, body.jobName, 'samples'));
-    const outputPath = path.resolve(trainingRoot, body.jobName, 'samples.zip');
+    const requestedSamplesPath = path.resolve(trainingRoot, jobName, 'samples');
+    const requestedOutputPath = path.resolve(trainingRoot, jobName, 'samples.zip');
+
+    if (!(await isPathInside(trainingRoot, requestedSamplesPath)) || !(await isPathInside(trainingRoot, requestedOutputPath))) {
+      return NextResponse.json({ error: 'Invalid jobName' }, { status: 400 });
+    }
+
+    const folderPath = await resolveSafe(requestedSamplesPath);
+    if (!(await isPathInside(trainingRoot, folderPath))) {
+      return NextResponse.json({ error: 'Invalid samples path' }, { status: 400 });
+    }
+    const outputPath = requestedOutputPath;
 
     // Must be a directory
     let stat: fs.Stats;

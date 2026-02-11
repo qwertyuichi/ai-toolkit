@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import { getDatasetsRoot, getTrainingFolder } from '@/server/settings';
+import { isPathInsideAny } from '@/server/pathSecurity';
 
 export async function POST(request: Request) {
   try {
@@ -9,8 +10,12 @@ export async function POST(request: Request) {
     let datasetsPath = await getDatasetsRoot();
     const trainingPath = await getTrainingFolder();
 
+    if (typeof imgPath !== 'string' || !imgPath.trim()) {
+      return NextResponse.json({ error: 'Invalid image path' }, { status: 400 });
+    }
+
     // make sure the dataset path is in the image path
-    if (!imgPath.startsWith(datasetsPath) && !imgPath.startsWith(trainingPath)) {
+    if (!(await isPathInsideAny([datasetsPath, trainingPath], imgPath))) {
       return NextResponse.json({ error: 'Invalid image path' }, { status: 400 });
     }
 
@@ -30,6 +35,10 @@ export async function POST(request: Request) {
     // check for caption
     const captionPath = imgPath.replace(/\.[^/.]+$/, '') + '.txt';
     if (fs.existsSync(captionPath)) {
+      // keep caption deletion inside the same allowed roots
+      if (!(await isPathInsideAny([datasetsPath, trainingPath], captionPath))) {
+        return NextResponse.json({ error: 'Invalid caption path' }, { status: 400 });
+      }
       // delete caption file
       fs.unlinkSync(captionPath);
     }

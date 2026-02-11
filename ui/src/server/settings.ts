@@ -1,10 +1,21 @@
 import { PrismaClient } from '@prisma/client';
-import { defaultDatasetsFolder, defaultDataRoot } from '@/paths';
-import { defaultTrainFolder } from '@/paths';
+import path from 'path';
+import { defaultDatasetsFolder, defaultDataRoot, defaultTrainFolder, resolvePathFromToolkitRoot } from '@/paths';
 import NodeCache from 'node-cache';
 
 const myCache = new NodeCache();
 const prisma = new PrismaClient();
+
+function resolveConfiguredPath(value: string | null | undefined, fallbackAbs: string): string {
+  const v = (value ?? '').trim();
+  if (!v) {
+    return fallbackAbs;
+  }
+  if (path.isAbsolute(v)) {
+    return path.normalize(v);
+  }
+  return resolvePathFromToolkitRoot(v);
+}
 
 export const flushCache = () => {
   myCache.flushAll();
@@ -21,10 +32,7 @@ export const getDatasetsRoot = async () => {
       key: 'DATASETS_FOLDER',
     },
   });
-  datasetsPath = defaultDatasetsFolder;
-  if (row?.value && row.value !== '') {
-    datasetsPath = row.value;
-  }
+  datasetsPath = resolveConfiguredPath(row?.value, defaultDatasetsFolder);
   myCache.set(key, datasetsPath);
   return datasetsPath as string;
 };
@@ -40,10 +48,7 @@ export const getTrainingFolder = async () => {
       key: key,
     },
   });
-  trainingRoot = defaultTrainFolder;
-  if (row?.value && row.value !== '') {
-    trainingRoot = row.value;
-  }
+  trainingRoot = resolveConfiguredPath(row?.value, defaultTrainFolder);
   myCache.set(key, trainingRoot);
   return trainingRoot as string;
 };
@@ -78,10 +83,7 @@ export const getDataRoot = async () => {
       key: key,
     },
   });
-  dataRoot = defaultDataRoot;
-  if (row?.value && row.value !== '') {
-    dataRoot = row.value;
-  }
+  dataRoot = resolveConfiguredPath(row?.value, defaultDataRoot);
   myCache.set(key, dataRoot);
   return dataRoot;
 };

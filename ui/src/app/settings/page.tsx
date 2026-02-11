@@ -72,7 +72,8 @@ export default function Settings() {
                   <label htmlFor="TRAINING_FOLDER" className="block text-sm font-medium mb-2">
                     Training Folder Path
                     <div className="text-gray-500 text-sm ml-1">
-                      We will store your training information here. Must be an absolute path. If blank, it will default
+                      We will store your training information here. You can use an absolute path, or a relative path
+                      (relative to the project root folder, i.e. the ai-toolkit directory). If blank, it will default
                       to the output folder in the project root.
                     </div>
                   </label>
@@ -91,7 +92,8 @@ export default function Settings() {
                   <label htmlFor="DATASETS_FOLDER" className="block text-sm font-medium mb-2">
                     Dataset Folder Path
                     <div className="text-gray-500 text-sm ml-1">
-                      Where we store and find your datasets.{' '}
+                      Where we store and find your datasets. You can use an absolute path, or a relative path (relative
+                      to the project root folder, i.e. the ai-toolkit directory).{' '}
                       <span className="text-orange-800">
                         Warning: This software may modify datasets so it is recommended you keep a backup somewhere else
                         or have a dedicated folder for this software.

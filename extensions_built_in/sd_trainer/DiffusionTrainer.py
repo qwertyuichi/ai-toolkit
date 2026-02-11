@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from collections import OrderedDict, deque
 import os
 import sqlite3
 import asyncio
@@ -8,6 +8,7 @@ from typing import Literal, Optional
 import threading
 import time
 import signal
+import statistics
 
 AITK_Status = Literal["running", "stopped", "error", "completed"]
 
@@ -38,6 +39,87 @@ class DiffusionTrainer(SDTrainer):
             self._run_async_operation(self._update_status("running", "Starting"))
             self._stop_watcher_started = False
             # self.start_stop_watcher(interval_sec=2.0)
+
+            # Lightweight speed estimation for UI so Speed isn't '?' until performance_log_every.
+            self._speed_last_wall = None
+            self._speed_last_step = None
+            self._speed_last_emit_wall = 0.0
+
+            # Track overhead timings so wall-clock ETA is stable (amortized instead of spiky).
+            self._save_durations_sec = deque(maxlen=20)
+            self._sample_durations_sec = deque(maxlen=20)
+
+            # Prefer a larger smoothing window for per-step timings.
+            self._speed_train_loop_window = 30
+
+    def _median_or_none(self, values) -> Optional[float]:
+        if not values:
+            return None
+        try:
+            v = statistics.median(values)
+        except statistics.StatisticsError:
+            return None
+        if v is None:
+            return None
+        try:
+            v = float(v)
+        except (TypeError, ValueError):
+            return None
+        if not (v > 0.0):
+            return None
+        return v
+
+    def _get_save_every(self) -> int:
+        try:
+            v = self.get_conf("save.save_every", 0, as_type=int)
+        except Exception:
+            v = 0
+        return max(0, int(v or 0))
+
+    def _get_sample_every(self) -> int:
+        try:
+            v = self.get_conf("sample.sample_every", 0, as_type=int)
+        except Exception:
+            v = 0
+        return max(0, int(v or 0))
+
+    def _sampling_enabled(self) -> bool:
+        try:
+            disabled = bool(self.get_conf("train.disable_sampling", False))
+        except Exception:
+            disabled = False
+        return not disabled
+
+    def _get_train_loop_seconds_per_iter(self) -> Optional[float]:
+        timings = getattr(self, "timer", None)
+        if timings is None:
+            return None
+        deque_values = timings.timers.get("train_loop")
+        if not deque_values:
+            return None
+        # Use median to reduce sensitivity to occasional spikes.
+        return self._median_or_none(list(deque_values))
+
+    def _estimate_wall_seconds_per_iter(self) -> Optional[float]:
+        """Estimate wall-clock seconds/iter as training time + amortized overhead."""
+        train_sec = self._get_train_loop_seconds_per_iter()
+        if train_sec is None:
+            return None
+
+        overhead = 0.0
+
+        save_every = self._get_save_every()
+        save_med = self._median_or_none(list(self._save_durations_sec))
+        if save_every > 0 and save_med is not None:
+            overhead += save_med / save_every
+
+        if self._sampling_enabled():
+            sample_every = self._get_sample_every()
+            sample_med = self._median_or_none(list(self._sample_durations_sec))
+            if sample_every > 0 and sample_med is not None:
+                overhead += sample_med / sample_every
+
+        return train_sec + overhead
     
     def start_stop_watcher(self, interval_sec: float = 5.0):
         """
@@ -236,18 +318,59 @@ class DiffusionTrainer(SDTrainer):
             asyncio.run(self.wait_for_all_async())
             self.thread_pool.shutdown(wait=True)
 
-    def handle_timing_print_hook(self, timing_dict):
-        if "train_loop" not in timing_dict:
-            print("train_loop not found in timing_dict", timing_dict)
+    def _maybe_update_speed_string(self):
+        if not self.is_ui_trainer or not self.accelerator.is_main_process:
             return
-        seconds_per_iter = timing_dict["train_loop"]
-        # determine iter/sec or sec/iter
+
+        now = time.monotonic()
+        if self._speed_last_wall is None or self._speed_last_step is None:
+            self._speed_last_wall = now
+            self._speed_last_step = self.step_num
+            # Don't emit speed on the very first call; we likely don't have train_loop stats yet.
+            return
+
+        # Throttle UI updates to avoid spamming DB writes.
+        if now - self._speed_last_emit_wall < 2.0:
+            return
+
+        seconds_per_iter = self._estimate_wall_seconds_per_iter()
+        if seconds_per_iter is None:
+            # Fallback to a coarse wall-clock estimate until train_loop timing exists.
+            steps_delta = self.step_num - self._speed_last_step
+            elapsed = now - self._speed_last_wall
+            if steps_delta <= 0 or elapsed <= 0.0 or elapsed < 1.0:
+                return
+            seconds_per_iter = elapsed / steps_delta
+
+        if not (seconds_per_iter > 0.0):
+            return
+
         if seconds_per_iter < 1:
             iters_per_sec = 1 / seconds_per_iter
             self.update_db_key("speed_string", f"{iters_per_sec:.2f} iter/sec")
         else:
-            self.update_db_key(
-                "speed_string", f"{seconds_per_iter:.2f} sec/iter")
+            self.update_db_key("speed_string", f"{seconds_per_iter:.2f} sec/iter")
+
+        self._speed_last_emit_wall = now
+        self._speed_last_wall = now
+        self._speed_last_step = self.step_num
+
+    def handle_timing_print_hook(self, timing_dict):
+        if "train_loop" not in timing_dict:
+            print("train_loop not found in timing_dict", timing_dict)
+            return
+        # Prefer the same estimator used for the per-step UI updates, so ETA is consistent.
+        seconds_per_iter = self._estimate_wall_seconds_per_iter()
+        if seconds_per_iter is None:
+            seconds_per_iter = timing_dict["train_loop"]
+        if not (seconds_per_iter > 0.0):
+            return
+
+        if seconds_per_iter < 1:
+            iters_per_sec = 1 / seconds_per_iter
+            self.update_db_key("speed_string", f"{iters_per_sec:.2f} iter/sec")
+        else:
+            self.update_db_key("speed_string", f"{seconds_per_iter:.2f} sec/iter")
 
     def done_hook(self):
         super(DiffusionTrainer, self).done_hook()
@@ -261,6 +384,7 @@ class DiffusionTrainer(SDTrainer):
         super(DiffusionTrainer, self).end_step_hook()
         if self.is_ui_trainer:
             self.update_step()
+            self._maybe_update_speed_string()
             self.maybe_stop()
 
     def hook_before_model_load(self):
@@ -283,6 +407,16 @@ class DiffusionTrainer(SDTrainer):
             self.update_status("running", "Training")
             self.timer.add_after_print_hook(self.handle_timing_print_hook)
 
+            # Increase timer smoothing window before train_loop timer gets created.
+            try:
+                self.timer.max_buffer = int(self._speed_train_loop_window)
+            except Exception:
+                pass
+
+            # Initialize speed estimation baseline.
+            self._speed_last_wall = time.monotonic()
+            self._speed_last_step = self.step_num
+
     def status_update_hook_func(self, string):
         self.update_status("running", string)
 
@@ -303,13 +437,23 @@ class DiffusionTrainer(SDTrainer):
         self.maybe_stop()
         total_imgs = len(self.sample_config.prompts)
         self.update_status("running", f"Generating images - 0/{total_imgs}")
+        t0 = time.monotonic()
         super().sample(step, is_first)
+        if self.is_ui_trainer and self.accelerator.is_main_process:
+            dt = time.monotonic() - t0
+            if dt > 0.0:
+                self._sample_durations_sec.append(dt)
         self.maybe_stop()
         self.update_status("running", "Training")
 
     def save(self, step=None):
         self.maybe_stop()
         self.update_status("running", "Saving model")
+        t0 = time.monotonic()
         super().save(step)
+        if self.is_ui_trainer and self.accelerator.is_main_process:
+            dt = time.monotonic() - t0
+            if dt > 0.0:
+                self._save_durations_sec.append(dt)
         self.maybe_stop()
         self.update_status("running", "Training")

@@ -68,6 +68,15 @@ const startAndWatchJob = (job: Job) => {
       }
     }
 
+    // On Windows, prefer pythonw.exe to avoid creating a console window.
+    if (isWindows) {
+      const pythonDir = path.dirname(pythonPath);
+      const pythonwPath = path.join(pythonDir, 'pythonw.exe');
+      if (fs.existsSync(pythonwPath)) {
+        pythonPath = pythonwPath;
+      }
+    }
+
     const runFilePath = path.join(TOOLKIT_ROOT, 'run.py');
     if (!fs.existsSync(runFilePath)) {
       console.error(`run.py not found at path: ${runFilePath}`);

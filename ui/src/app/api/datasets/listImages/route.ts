@@ -2,12 +2,20 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { getDatasetsRoot } from '@/server/settings';
+import { isPathInside, getNonEmptyString } from '@/server/pathSecurity';
 
 export async function POST(request: Request) {
   const datasetsPath = await getDatasetsRoot();
   const body = await request.json();
-  const { datasetName } = body;
-  const datasetFolder = path.join(datasetsPath, datasetName);
+  const datasetName = getNonEmptyString(body?.datasetName);
+  if (!datasetName) {
+    return NextResponse.json({ error: 'Invalid datasetName' }, { status: 400 });
+  }
+  const datasetFolder = path.resolve(datasetsPath, datasetName);
+
+  if (!(await isPathInside(datasetsPath, datasetFolder)) || datasetFolder === datasetsPath) {
+    return NextResponse.json({ error: 'Invalid datasetName' }, { status: 400 });
+  }
 
   try {
     // Check if folder exists
